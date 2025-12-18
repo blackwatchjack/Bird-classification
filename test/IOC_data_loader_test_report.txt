@@ -1,0 +1,30 @@
+IOC数据加载器测试报告
+==================================================
+
+测试时间: 2025-12-18 14:47:53
+开始加载时间: 2025-12-18 14:47:49
+结束加载时间: 2025-12-18 14:47:53
+加载耗时: 0:00:03.712292
+
+数据加载统计:
+- 注册的物种数量: 11250
+- 匹配索引数量: 22500
+
+分类阶元统计:
+- 目 (Order) 数量: 44
+- 科 (Family) 数量: 256
+- 属 (Genus) 数量: 2396
+
+部分物种示例 (前10个):
+1. 非洲鸵鸟 (Struthio camelus) - STRUTHIONIFORMES / Struthionidae
+2. 灰颈鸵鸟 (Struthio molybdophanes) - STRUTHIONIFORMES / Struthionidae
+3. 大美洲鸵 (Rhea americana) - RHEIFORMES / Rheidae
+4. 小美洲鸵 (Rhea pennata) - RHEIFORMES / Rheidae
+5. 褐几维 (Apteryx australis) - APTERYGIFORMES / Apterygidae
+6. 北岛褐几维 (Apteryx mantelli) - APTERYGIFORMES / Apterygidae
+7. 白眶几维 (Apteryx rowi) - APTERYGIFORMES / Apterygidae
+8. 小斑几维 (Apteryx owenii) - APTERYGIFORMES / Apterygidae
+9. 大斑几维 (Apteryx maxima) - APTERYGIFORMES / Apterygidae
+10. 双垂鹤鸵 (Casuarius casuarius) - CASUARIIFORMES / Casuariidae
+
+测试状态: 通过
