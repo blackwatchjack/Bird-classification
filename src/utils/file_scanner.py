@@ -1,7 +1,7 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
-from src.birds import DataRegistry, PhotoIndex
+from src.models.birds import DataRegistry, PhotoIndex
 
 class FileScanner:
     def __init__(self, registry: DataRegistry):
