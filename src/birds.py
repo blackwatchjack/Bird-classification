@@ -19,7 +19,7 @@ class PhotoIndex:
     file_name: str                          # 原始文件名
     absolute_path: str                      # 物理路径，用于一键定位
     matched_species_id: Optional[str] = None  # 关联的 BirdSpecies.id
-    root_dir: str = ""                      # 所属扫描根目录
+    # root_dir: str = ""                      # 所属扫描根目录
 
 @dataclass
 class TaxonNode:
@@ -67,3 +67,50 @@ class DataRegistry:
             if key in fn_lower:
                 return species_id
         return None
+
+    def add_photo(self, photo: PhotoIndex):
+        """注册照片索引"""
+        self.all_photos.append(photo)
+        # 递归更新分类树节点
+        self._update_tree(photo)
+
+    def _update_tree(self, photo: PhotoIndex):
+        """将照片挂载到分类树节点"""
+        species = self.species_map[photo.matched_species_id]
+
+        # 获取路径
+        path = [
+            ("Order", species.order),
+            ("Family", species.family),
+            ("Genus", species.genus),
+        ]
+
+        # 递归挂载到树节点
+        node = self.tree_root
+        for rank, name in path:
+            if name not in node.children:
+                node.children[name] = TaxonNode(rank=rank, name=name)
+            node = node.children[name]
+        
+        # 挂载到最末端的 Genus 节点
+        node.photo_indices.append(photo)
+
+    def show_tree(self):
+        """info级, 递归打印分类树"""
+        def print_node(node: TaxonNode, indent: str = ""):
+            print(f"{indent}{node.rank} {node.name} (Photos: {node.total_photos})")
+            for child in node.children.values():
+                print_node(child, indent + "  ")
+        print_node(self.tree_root)
+
+    def show_photos(self, node: TaxonNode, indent: str = ""):
+        """info级, 递归打印节点照片"""
+        print(f"{indent}{node.rank} {node.name} (Photos: {node.total_photos})")
+        for photo in node.photo_indices:
+            if photo.matched_species_id and photo.matched_species_id in self.species_map:
+                species = self.species_map[photo.matched_species_id]
+                print(f"{indent}  {photo.file_name} -> {species.chinese_name} ({species.scientific_name})")
+            else:
+                print(f"{indent}  {photo.file_name} -> {photo.matched_species_id}")
+        for child in node.children.values():
+            self.show_photos(child, indent + "  ")
