@@ -1,5 +1,5 @@
 from src.birds import DataRegistry
-from IOC_dataloader import IOCDataLoader
+from src.IOC_dataloader import IOCDataLoader
 from src.file_scanner import FileScanner
 
 def main():
