@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import List
-from src.models.birds import BirdSpecies, DataRegistry
+from models.birds import BirdSpecies, DataRegistry
 
 class IOCDataLoader:
     def __init__(self, excel_path: str):
