@@ -4,5 +4,5 @@ venv/
 .DS_Store
 photo/
 src/photo/
-test/
+tests/
 项目存档.md

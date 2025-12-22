@@ -1,5 +1,5 @@
 import json
-from models.birds import TaxonNode
+from src.models.birds import TaxonNode
 
 class DataConverter:
     @staticmethod
