@@ -1,5 +1,5 @@
 import json
-from src.models.birds import TaxonNode
+from models.birds import TaxonNode
 
 class DataConverter:
     @staticmethod
@@ -10,8 +10,9 @@ class DataConverter:
         label = f"{node.name} ({count})"
 
         # 构造当前节点的字典
+        # 使用节点名称和级别组合作为唯一标识，因为 TaxonNode 没有独立的 id 属性
         item = {
-            "id": f"{node.rank}-{node.id}",
+            "id": f"{node.rank}-{node.name.replace(' ', '_')}",
             "label": label,
             "rank": node.rank,
             "photocount": count
@@ -20,7 +21,7 @@ class DataConverter:
         # 2. 如果到了种级别，附带文件路径方便前端查询
         if node.rank == "species":
             item["photo"] = [
-                {"name":p.name, "path":p.absolute_path} for p in node.photo_indices
+                {"name":p.file_name, "path":p.absolute_path} for p in node.photo_indices
             ]
 
         if node.children:
