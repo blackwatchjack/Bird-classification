@@ -6,3 +6,5 @@ photo/
 src/photo/
 tests/
 项目存档.md
+htmlcov/
+.coverage
