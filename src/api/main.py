@@ -1,5 +1,7 @@
 from atexit import register
-from fastapi import FastAPI, BackgroundTasks, Query, status
+import platform
+import subprocess
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -7,13 +9,12 @@ from typing import List, Optional
 import os
 import sys
 
-# 添加项目根目录到 Python 路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from utils.data_converter import DataConverter
-from models.birds import DataRegistry
-from data.IOC_dataloader import IOCDataLoader
-from utils.file_scanner import FileScanner
+from src.utils.data_converter import DataConverter
+from src.models.birds import DataRegistry
+from src.data.IOC_dataloader import IOCDataLoader
+from src.utils.file_scanner import FileScanner
 
 app = FastAPI(title="Bird Photo Indexer API")
 
@@ -85,6 +86,39 @@ async def image_proxy(path: str = Query(...)):
     if os.path.exists(path):
         return FileResponse(path)
     return {"error": "File not found"}
+
+@app.get("/api/locate")
+async def locate_file(path: str = Query(..., description="绝对路径")):
+    """
+    在资源管理器中定位文件并选中
+    :param path: 文件的绝对路径
+    :return: 包含定位信息的JSON响应
+    """
+    if not os.path.exists(path):
+        return HTTPException(status_code=404, detail="File not found")
+
+    try:
+        system_platform = platform.system()
+        if system_platform == "Windows":
+        # Windows: 使用explorer.exe /select, 选中文件
+        # normpath 用于解决反斜杠问题
+            subprocess.run(["explorer.exe", "/select,", os.path.normpath(path)])
+        
+        elif system_platform == "Darwin":
+        # macOS: 使用open -R, 选中文件
+            subprocess.run(["open", "-R", path])
+        
+        elif system_platform == "Linux":
+        # Linux: 使用xdg-open -R, 选中文件
+            subprocess.run(["xdg-open", path])
+        
+        else:
+            return HTTPException(status_code=400, detail="Unsupported platform")
+        
+        return {"status": "success", "message": f"File located and selected: {path}"}
+
+    except Exception as e:
+        return HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
