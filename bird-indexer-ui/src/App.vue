@@ -28,12 +28,25 @@
         <el-empty v-if="currentPhotos.length === 0" description="点击左侧物种查看照片" />
         <div class="photo-grid">
           <div v-for="photo in currentPhotos" :key="photo.path" class="photo-card" @click="selectPhoto(photo)">
-            <el-image 
-              :src="'http://localhost:8000/api/image-proxy?path=' + photo.path" 
+            <!-- <el-image 
+              :src="'/api/image-proxy?path=' + photo.path" 
               lazy 
               fit="cover"
               class="bird-thumb"
-            />
+            /> -->
+            <el-image 
+              :src="`/api/thumbnail?path=${encodeURIComponent(photo.path)}&size=200`" 
+              lazy 
+              fit="cover"
+              class="bird-thumb"
+            >
+              <template #placeholder>
+                <div class="image-slot">加载中...</div>
+              </template>
+              <template #error>
+                <el-icon><Picture /></el-icon>
+              </template>
+            </el-image>
             <div class="photo-name">{{ photo.name }}</div>
           </div>
         </div>
@@ -58,7 +71,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // --- 响应式数据 ---
-const scanPath = ref('D:/Photos/Birds')
+const scanPath = ref('Ur bird photos folder path')
 const isScanning = ref(false)
 const scanProgress = ref(0)
 const treeData = ref([])
@@ -66,6 +79,7 @@ const currentPhotos = ref([])
 const selectedPhoto = ref(null)
 const filterText = ref('')
 const treeRef = ref()
+const pollTimer = ref(null)
 
 const treeProps = {
   value: 'id',
@@ -79,7 +93,7 @@ const treeProps = {
 const startScan = async () => {
   isScanning.value = true
   try {
-    await axios.post('http://localhost:8000/api/scan', { paths: [scanPath.value] })
+    await axios.post('/api/scan', { paths: [scanPath.value] }, { timeout: 15000 })
     pollStatus()
   } catch (err) {
     ElMessage.error('启动扫描失败')
@@ -89,19 +103,46 @@ const startScan = async () => {
 
 // 2. 轮询扫描进度
 const pollStatus = () => {
-  const timer = setInterval(async () => {
-    const res = await axios.get('http://localhost:8000/api/status')
-    if (res.data.status === 'completed') {
-      clearInterval(timer)
+  // 清除可能存在的旧定时器
+  if (pollTimer.value) {
+    clearInterval(pollTimer.value)
+  }
+  
+  const startTime = Date.now()
+  const MAX_POLL_TIME = 300000 // 最大轮询时间：5分钟
+  
+  pollTimer.value = setInterval(async () => {
+    try {
+      // 检查是否超过最大轮询时间
+      if (Date.now() - startTime > MAX_POLL_TIME) {
+        clearInterval(pollTimer.value)
+        pollTimer.value = null
+        isScanning.value = false
+        ElMessage.error('扫描超时')
+        return
+      }
+      
+      const res = await axios.get('/api/status')
+      if (res.data.status === 'completed') {
+        scanProgress.value = 100
+        clearInterval(pollTimer.value)
+        pollTimer.value = null
+        isScanning.value = false
+        loadTree()
+        ElMessage.success(`扫描完成：共扫描${res.data.scanned}个文件，匹配${res.data.matched}个物种照片`)
+      }
+    } catch (err) {
+      clearInterval(pollTimer.value)
+      pollTimer.value = null
       isScanning.value = false
-      loadTree()
+      ElMessage.error('轮询扫描进度失败')
     }
   }, 1000)
 }
 
 // 3. 加载树结构
 const loadTree = async () => {
-  const res = await axios.get('http://localhost:8000/api/tree')
+  const res = await axios.get('/api/tree')
   treeData.value = [res.data]
 }
 
@@ -113,10 +154,19 @@ const handleNodeClick = (node) => {
 }
 
 // 5. 定位文件
-const locateFile = () => {
-  // 这里可以调用后端 API 让后端执行 os.startfile 或 shell 逻辑
-  axios.get(`http://localhost:8000/api/locate?path=${selectedPhoto.value.path}`)
-}
+// 在 <script setup> 中添加
+const locateFile = async () => {
+  if (!selectedPhoto.value) return;
+  
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/locate', {
+      params: { path: selectedPhoto.value.path }
+    });
+    ElMessage.success('已打开资源管理器');
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || '定位失败');
+  }
+};
 
 const selectPhoto = (photo) => { selectedPhoto.value = photo }
 
@@ -124,6 +174,15 @@ const selectPhoto = (photo) => { selectedPhoto.value = photo }
 watch(filterText, (val) => {
   treeRef.value?.filter(val)
 })
+
+// 监听扫描状态变化，停止轮询
+watch(isScanning, (newVal) => {
+  if (!newVal && pollTimer.value) {
+    clearInterval(pollTimer.value)
+    pollTimer.value = null
+  }
+})
+
 const filterNode = (value, data) => {
   if (!value) return true
   return data.label.includes(value)

@@ -8,6 +8,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 import sys
+from PIL import Image
+import hashlib
+from pathlib import Path
+from fastapi.responses import FileResponse, Response
+import io
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -17,6 +22,10 @@ from src.data.IOC_dataloader import IOCDataLoader
 from src.utils.file_scanner import FileScanner
 
 app = FastAPI(title="Bird Photo Indexer API")
+
+# 配置缓存目录
+CACHE_DIR = Path("./.bird_cache/thumbnails")
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- 配置 CORS，允许 Element Plus 跨域访问 ---
 app.add_middleware(
@@ -36,34 +45,52 @@ loader.load_to_registry(registry)
 scan_status = {
     "status": "idle",
     "scanned": 0,
-    "matched": 0
+    "matched": 0,
+    "total": 0
 }
+
+# --- 辅助函数 ---
+def get_cache_path(origin_path: str):
+    """根据原始路径生成唯一哈希值作为缓存文件名"""
+    file_hash = hashlib.md5(origin_path.encode()).hexdigest()
+    return CACHE_DIR / f"{file_hash}.jpg"
 
 # --- 数据模型 ---
 class ScanRequest(BaseModel):
     paths: List[str] 
 
 # --- 核心接口 ---
-@app.post("/api/scan", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/api/scan")
 async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
     """启动扫描任务"""
     global scan_status
+    print(f"Received scan request for paths: {request.paths}")
     scan_status["status"] = "scanning"
+    scan_status["scanned"] = 0
+    scan_status["matched"] = 0
     
-    scnner = FileScanner(registry)
+    scanner = FileScanner(registry)
+    
+    def update_progress(scanned, matched):
+        """更新扫描进度的回调函数"""
+        global scan_status
+        scan_status["scanned"] = scanned
+        scan_status["matched"] = matched
+    
+    scanner.set_progress_callback(update_progress)
     
     def run_scan():
         """实际的扫描任务"""
         total_scanned, total_matched = 0, 0
         for path in request.paths:
-            scanned, matched = scnner.scan_directory(path)
+            scanned, matched = scanner.scan_directory(path)
             total_scanned += scanned
             total_matched += matched
 
         # 更新状态
         scan_status["scanned"] = total_scanned
         scan_status["matched"] = total_matched
-        scan_status["status"] = "idle"
+        scan_status["status"] = "completed"
 
     background_tasks.add_task(run_scan)
     return {"message": "Scan started", "status": scan_status}
@@ -71,6 +98,7 @@ async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
 @app.get("/api/status")
 async def get_scan_status():
     """获取当前扫描状态"""
+    print(f"Returning scan status: {scan_status}")
     return scan_status
 
 @app.get("/api/tree")
@@ -119,6 +147,38 @@ async def locate_file(path: str = Query(..., description="绝对路径")):
 
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/thumbnail")
+async def get_thumbnail(path: str = Query(..., description="原始图片路径")):
+    """获取图片的缩略图"""
+    if not os.path.exists(path):
+        return HTTPException(status_code=404, detail="File not found")
+
+    cache_path = get_cache_path(path)
+    
+    # 1. 命中
+    if cache_path.exists():
+        return FileResponse(cache_path)
+
+    # 2. 未命中
+    try:
+        # 生成缩略图
+        with Image.open(path) as img:
+            # RGB
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # 缩放200*200
+            img.thumbnail((200, 200))
+            
+            # 保存缓存
+            img.save(cache_path, "JPEG", quality = 85)
+
+        return FileResponse(cache_path)
+
+    except Exception as e:
+        print(f"生成缩略图失败: {e}")
+        return FileResponse(path)
 
 if __name__ == "__main__":
     import uvicorn

@@ -7,6 +7,11 @@ class FileScanner:
     def __init__(self, registry: DataRegistry):
         self.registry = registry
         self.supported_extensions = ('.jpg', '.jpeg', '.png', '.raw', '.arw', '.cr2', '.nef')       # 支持的图片扩展名
+        self.progress_callback = None
+
+    def set_progress_callback(self, callback):
+        """设置进度回调函数"""
+        self.progress_callback = callback
 
     def scan_directory(self, root_path: str) -> tuple[int, int]:
         """递归扫描目录，将符合条件的文件路径注册到 DataRegistry
@@ -34,6 +39,10 @@ class FileScanner:
                         if any(ext in entry.name.lower() for ext in self.supported_extensions):
                             self._process_file(entry.name, entry.path)
                             matched_count += 1
+                
+                # 调用进度回调
+                if self.progress_callback:
+                    self.progress_callback(scanned_count, matched_count)
         except FileNotFoundError:
             print(f"Directory not found: {root_path}")
         
