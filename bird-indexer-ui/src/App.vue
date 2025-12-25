@@ -148,8 +148,8 @@ const loadTree = async () => {
 
 // 4. 点击节点处理
 const handleNodeClick = (node) => {
-  if (node.rank === 'Species') {
-    currentPhotos.value = node.photos || []
+  if (node.rank === 'species') {
+    currentPhotos.value = node.photo || []
   }
 }
 

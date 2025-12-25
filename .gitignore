@@ -8,3 +8,4 @@ tests/
 项目存档.md
 htmlcov/
 .coverage
+.bird_cache/
