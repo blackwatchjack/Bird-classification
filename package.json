@@ -1,0 +1,25 @@
+{
+  "name": "bird-indexer-app",
+  "version": "1.0.0",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "ui:build": "cd bird-indexer-ui && npm run build",
+    "py:build": "python -m PyInstaller -F src/api/main.py --name backend --paths . --noconsole --distpath dist_python",
+    "dist": "npm run ui:build && npm run py:build && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "extraResources": [
+      { "from": "dist_python/backend.exe", "to": "backend.exe" },
+      { "from": "src/data/Multiling IOC 15.1_d.xlsx", "to": "src/data/Multiling IOC 15.1_d.xlsx" }
+    ],
+    "files": [
+      "electron-main.js",
+      "bird-indexer-ui/dist/**/*"
+    ]
+  }
+}

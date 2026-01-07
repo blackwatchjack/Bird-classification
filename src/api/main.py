@@ -15,6 +15,23 @@ from fastapi.responses import FileResponse, Response
 import io
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+def get_base_path():
+    # 如果是 pyinstaller 打包后的路径
+    if hasattr(sys, '_MEIPASS'):
+        return Path(sys._MEIPASS)
+    # 在开发环境下，根目录是上级的上级的上级
+    return Path(__file__).resolve().parent.parent.parent
+
+BASE_DIR = get_base_path()
+
+def get_execl_path():
+    # 优先查找当前运行目录下的数据（方便用户手动更新）
+    current_dir_excel = Path(os.getcwd()) / "Multiling IOC 15.1_d.xlsx"
+    if current_dir_excel.exists():
+        return current_dir_excel
+    
+    # 否则查找打包内的默认路径
+    return BASE_DIR / "src" / "data" / "Multiling IOC 15.1_d.xlsx"
 
 from src.utils.data_converter import DataConverter
 from src.models.birds import DataRegistry
